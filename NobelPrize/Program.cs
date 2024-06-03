@@ -12,26 +12,38 @@ namespace NobelPrizeApp
     {
         static async Task Main(string[] args)
         {
-            while (true) // Keep the program running indefinitely
+            Dictionary<string, string> categories = new Dictionary<string, string>()
+            {
+                {"chemistry","che"},
+                {"economy","eco"},
+                {"literature","lit"},
+                {"peace","pea"},
+                {"physics","phy"},
+                {"medicine","med"},
+                {"exit","exit"}
+            };
+
+            while (true) 
             {
                 Console.WriteLine("Enter the category you are looking for (or type 'exit' to quit):");
-                string category = Console.ReadLine();
+                string category = Console.ReadLine().ToLower();
 
-                if (string.IsNullOrEmpty(category))
+                if (!categories.ContainsKey(category))
                 {
-                    Console.WriteLine("Category cannot be empty.");
-                    continue; // Skip the rest of the loop iteration and prompt again
+                    Console.WriteLine("Invalid category");
+                    continue;
                 }
 
-                if (category.ToLower() == "exit")
-                    break; // Exit the loop and end the program
+                string apiCategory = categories[category];
+
+                if (category == "exit")
+                    break;
 
                 var httpClient = new HttpClient();
-                var endpoint = $"https://api.nobelprize.org/v1/prize.json?category={category.ToLower()}";
+                var endpoint = $"https://api.nobelprize.org/2.1/nobelPrizes?nobelPrizeCategory={apiCategory}";
 
                 try
                 {
-                    // Fetch data from the Nobel Prize API
                     var response = await httpClient.GetFromJsonAsync<NobelPrizesResponse>(endpoint);
 
                     if (response != null && response.Prizes != null && response.Prizes.Count > 0)
@@ -39,32 +51,45 @@ namespace NobelPrizeApp
                         // Use Reactive Extensions to process and save the data
                         var observable = response.Prizes.ToObservable();
 
-                        var laureatesData = new List<(string Name, string Year, string Motivation)>();
+                        var laureatesData = new List<(string Name, string Year, string DateAwarded, string Motivation)>();
 
                         observable
                             .SelectMany(prize => prize.Laureates ?? Enumerable.Empty<Laureate>(), (prize, laureate) => new
                             {
                                 Year = prize.Year,
-                                Motivation = laureate?.Motivation, // Null-conditional operator used here
-                                Laureate = laureate
+                                DateAwarded = prize.DateAwarded,
+                                Motivation = laureate?.Motivation?.EnglishMotivation, 
+                                Laureate = laureate?.KnownName?.EnglishName
                             })
                             .Subscribe(data =>
                             {
-                                if (data.Laureate != null) // Check if Laureate is not null
+                                if (!string.IsNullOrEmpty(data.Laureate) && !string.IsNullOrEmpty(data.DateAwarded)) 
                                 {
-                                    // Adding data to laureatesData
                                     laureatesData.Add((
-                                        $"{data.Laureate.Firstname} {data.Laureate.Surname}",
+                                        data.Laureate,
                                         data.Year,
-                                        data.Motivation ?? "Motivation not available" // Providing a default value if Motivation is null
+                                        data.DateAwarded,
+                                        data.Motivation ?? "Motivation not available"
                                     ));
                                 }
                             });
 
-                        // Now 'laureatesData' contains the desired information
                         foreach (var laureateData in laureatesData)
                         {
-                            Console.WriteLine($"Name: {laureateData.Name}\nYear: {laureateData.Year}\nMotivation: {laureateData.Motivation}\n");
+                            Console.WriteLine($"Name: {laureateData.Name}\nYear: {laureateData.Year}\nDate Awarded: {laureateData.DateAwarded}\nMotivation: {laureateData.Motivation}\n");
+                        }
+
+                        var monthCounts = laureatesData
+                            .Where(data => !string.IsNullOrEmpty(data.DateAwarded)) 
+                            .GroupBy(data => DateTime.Parse(data.DateAwarded).Month)
+                            .Select(group => new { Month = group.Key, Count = group.Count() })
+                            .OrderByDescending(x => x.Count)
+                            .FirstOrDefault();
+
+                        if (monthCounts != null)
+                        {
+                            var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(monthCounts.Month);
+                            Console.WriteLine($"\nThe month with the most awards is {monthName} with {monthCounts.Count} awards.");
                         }
                     }
                     else

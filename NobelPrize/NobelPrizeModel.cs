@@ -5,14 +5,17 @@ namespace NobelPrizeApp
 {
     public class NobelPrizesResponse
     {
-        [JsonPropertyName("prizes")]
+        [JsonPropertyName("nobelPrizes")]
         public List<Prize> Prizes { get; set; }
     }
 
     public class Prize
     {
-        [JsonPropertyName("year")]
+        [JsonPropertyName("awardYear")]
         public string Year { get; set; }
+
+        [JsonPropertyName("dateAwarded")]
+        public string DateAwarded { get; set; }
 
         [JsonPropertyName("laureates")]
         public List<Laureate> Laureates { get; set; }
@@ -20,17 +23,24 @@ namespace NobelPrizeApp
 
     public class Laureate
     {
-        [JsonPropertyName("id")]
-        public string Id { get; set; }
-
-        [JsonPropertyName("firstname")]
-        public string Firstname { get; set; }
-
-        [JsonPropertyName("surname")]
-        public string Surname { get; set; }
+        [JsonPropertyName("knownName")]
+        public KnownName KnownName { get; set; }
 
         [JsonPropertyName("motivation")]
-        public string Motivation { get; set; }
+        public Motivation Motivation { get; set; }
 
+    }
+
+    public class KnownName
+    {
+        [JsonPropertyName("en")]
+        public string EnglishName { get; set; }
+
+    }
+
+    public class Motivation
+    {
+        [JsonPropertyName("en")]
+        public string EnglishMotivation { get; set; }
     }
 }
