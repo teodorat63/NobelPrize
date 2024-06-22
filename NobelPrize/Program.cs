@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Reactive.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace NobelPrizeApp
@@ -20,26 +21,27 @@ namespace NobelPrizeApp
                 {"peace","pea"},
                 {"physics","phy"},
                 {"medicine","med"},
-                {"exit","exit"}
             };
 
-            while (true) 
+            HttpClient httpClient = new HttpClient();
+            var loggingEndpoint = "http://localhost:5000/";
+
+            while (true)
             {
                 Console.WriteLine("Enter the category you are looking for (or type 'exit' to quit):");
                 string category = Console.ReadLine().ToLower();
 
+                if (category == "exit")
+                    break;
+
                 if (!categories.ContainsKey(category))
                 {
                     Console.WriteLine("Invalid category");
+                    await LogMessage(loggingEndpoint, "Failed to fetch data for: " + category + " Invalid category");
                     continue;
                 }
 
                 string apiCategory = categories[category];
-
-                if (category == "exit")
-                    break;
-
-                var httpClient = new HttpClient();
                 var endpoint = $"https://api.nobelprize.org/2.1/nobelPrizes?nobelPrizeCategory={apiCategory}";
 
                 try
@@ -48,9 +50,7 @@ namespace NobelPrizeApp
 
                     if (response != null && response.Prizes != null && response.Prizes.Count > 0)
                     {
-                        // Use Reactive Extensions to process and save the data
                         var observable = response.Prizes.ToObservable();
-
                         var laureatesData = new List<(string Name, string Year, string DateAwarded, string Motivation)>();
 
                         observable
@@ -58,12 +58,12 @@ namespace NobelPrizeApp
                             {
                                 Year = prize.Year,
                                 DateAwarded = prize.DateAwarded,
-                                Motivation = laureate?.Motivation?.EnglishMotivation, 
+                                Motivation = laureate?.Motivation?.EnglishMotivation,
                                 Laureate = laureate?.KnownName?.EnglishName
                             })
                             .Subscribe(data =>
                             {
-                                if (!string.IsNullOrEmpty(data.Laureate) && !string.IsNullOrEmpty(data.DateAwarded)) 
+                                if (!string.IsNullOrEmpty(data.Laureate) && !string.IsNullOrEmpty(data.DateAwarded))
                                 {
                                     laureatesData.Add((
                                         data.Laureate,
@@ -80,7 +80,7 @@ namespace NobelPrizeApp
                         }
 
                         var monthCounts = laureatesData
-                            .Where(data => !string.IsNullOrEmpty(data.DateAwarded)) 
+                            .Where(data => !string.IsNullOrEmpty(data.DateAwarded))
                             .GroupBy(data => DateTime.Parse(data.DateAwarded).Month)
                             .Select(group => new { Month = group.Key, Count = group.Count() })
                             .OrderByDescending(x => x.Count)
@@ -91,16 +91,29 @@ namespace NobelPrizeApp
                             var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(monthCounts.Month);
                             Console.WriteLine($"\nThe month with the most awards is {monthName} with {monthCounts.Count} awards.");
                         }
+
+                        await LogMessage(loggingEndpoint, "Successfully fetched and processed data for: " + category);
                     }
                     else
                     {
-                        Console.WriteLine("No data found for the specified category.");
+                        Console.WriteLine("No data found for the following category: " + category);
+                        await LogMessage(loggingEndpoint, "No data found for the following category: " + category);
                     }
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Failed to fetch data: {ex.Message}");
+                    await LogMessage(loggingEndpoint, $"Failed to fetch data: {ex.Message}");
                 }
+            }
+        }
+
+        static async Task LogMessage(string endpoint, string message)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                var content = new StringContent(message, Encoding.UTF8, "application/json");
+                await client.PostAsync(endpoint, content);
             }
         }
     }
