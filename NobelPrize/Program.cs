@@ -86,9 +86,11 @@ namespace NobelPrizeApp
                             .OrderByDescending(x => x.Count)
                             .FirstOrDefault();
 
+                        string[] monthNames = {"January", "February", "March", "April", "May", "June","July", "August", "September", "October", "November", "December"};
+
                         if (monthCounts != null)
                         {
-                            var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(monthCounts.Month);
+                            string monthName = monthNames[monthCounts.Month - 1];
                             Console.WriteLine($"\nThe month with the most awards is {monthName} with {monthCounts.Count} awards.");
                         }
 
