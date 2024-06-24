@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -50,10 +51,11 @@ namespace NobelPrizeApp
 
                     if (response != null && response.Prizes != null && response.Prizes.Count > 0)
                     {
-                        var observable = response.Prizes.ToObservable();
                         var laureatesData = new List<(string Name, string Year, string DateAwarded, string Motivation)>();
 
-                        observable
+                        var observable = response.Prizes.ToObservable();
+
+                        await observable
                             .SelectMany(prize => prize.Laureates ?? Enumerable.Empty<Laureate>(), (prize, laureate) => new
                             {
                                 Year = prize.Year,
@@ -61,7 +63,8 @@ namespace NobelPrizeApp
                                 Motivation = laureate?.Motivation?.EnglishMotivation,
                                 Laureate = laureate?.KnownName?.EnglishName
                             })
-                            .Subscribe(data =>
+                            .ObserveOn(TaskPoolScheduler.Default)
+                            .Do(data =>
                             {
                                 if (!string.IsNullOrEmpty(data.Laureate) && !string.IsNullOrEmpty(data.DateAwarded))
                                 {
@@ -72,7 +75,8 @@ namespace NobelPrizeApp
                                         data.Motivation ?? "Motivation not available"
                                     ));
                                 }
-                            });
+                            })
+                            .LastOrDefaultAsync(); 
 
                         foreach (var laureateData in laureatesData)
                         {
@@ -86,7 +90,7 @@ namespace NobelPrizeApp
                             .OrderByDescending(x => x.Count)
                             .FirstOrDefault();
 
-                        string[] monthNames = {"January", "February", "March", "April", "May", "June","July", "August", "September", "October", "November", "December"};
+                        string[] monthNames = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
 
                         if (monthCounts != null)
                         {

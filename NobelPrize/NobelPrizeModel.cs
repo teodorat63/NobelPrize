@@ -23,19 +23,35 @@ namespace NobelPrizeApp
 
     public class Laureate
     {
+        [JsonPropertyName("id")]
+        public string Id { get; set; }
+
         [JsonPropertyName("knownName")]
         public KnownName KnownName { get; set; }
 
+        [JsonPropertyName("fullName")]
+        public FullName FullName { get; set; }
+
+        [JsonPropertyName("portion")]
+        public string Portion { get; set; }
+
+        [JsonPropertyName("sortOrder")]
+        public string SortOrder { get; set; }
+
         [JsonPropertyName("motivation")]
         public Motivation Motivation { get; set; }
-
     }
 
     public class KnownName
     {
         [JsonPropertyName("en")]
         public string EnglishName { get; set; }
+    }
 
+    public class FullName
+    {
+        [JsonPropertyName("en")]
+        public string EnglishName { get; set; }
     }
 
     public class Motivation
